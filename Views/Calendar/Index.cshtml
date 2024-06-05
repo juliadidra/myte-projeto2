@@ -1,6 +1,15 @@
 ﻿@model myte.Models.CalendarPageViewModel
 
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["ErrorMessage"]
+    </div>
+}
+
 <h2>Registro de Horas</h2>
+
+<a asp-action="Create" asp-controller="Calendar" asp-route-email="@ViewBag.Email" class="btn btn-primary botao_create_horas">Registrar horas</a>
 
 <div class="calendar-container">
     <div class="calendar-header">
@@ -15,41 +24,13 @@
                 <th class="vw-100">WBS</th>
                 @for (int i = 1; i <= 15; i++)
                 {
-                    <th class="w-25">Dia @i</th>
+                    <th class="w-25">Dia @i da quinzena</th>
                 }
             </tr>
         </thead>
         <tbody id="calendar-body">
         </tbody>
     </table>
-</div>
-
-<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editModalLabel">Atualizar Registro de Horas</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="editForm" method="post" asp-action="Update">
-                    <input type="hidden" id="editDia" name="Dia" />
-                    <input type="hidden" id="editWbs" name="WBS_Codigo" />
-                    <div class="form-group">
-                        <label for="editHoras">Horas</label>
-                        <input type="number" class="form-control" id="editHoras" name="Horas" />
-                    </div>
-                    <input type="hidden" name="Funcionario_Email" value="julia@email.com" />
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar mudanças</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 </div>
 
 @section Scripts {
@@ -65,6 +46,7 @@
             // Obter dados do modelo
             const wbsList = @Html.Raw(Json.Serialize(Model.WbsList));
             const registroHorasList = @Html.Raw(Json.Serialize(Model.RegistroHorasList));
+            const email = '@ViewBag.Email';
 
             console.log('WBS List:', wbsList);
             console.log('Registro Horas List:', registroHorasList);
@@ -72,6 +54,15 @@
             function getQuinzena(date) {
                 const day = date.getDate();
                 return day <= 15 ? 1 : 2;
+            }
+
+            function parseDate(dateString) {
+                if (!dateString) {
+                    console.error('Invalid date string:', dateString);
+                    return null;
+                }
+                const [year, month, day] = dateString.split('-');
+                return new Date(year, month - 1, day);
             }
 
             function renderCalendar() {
@@ -87,16 +78,16 @@
                 calendarBody.innerHTML = '';
 
                 wbsList.forEach(wbs => {
-                    // if (!wbs || !wbs.Nome) {
-                    //     console.error('WBS data is missing:', wbs);
-                    //     return;
-                    // }
+                    if (!wbs || !wbs.nome) {
+                        console.error('WBS data is missing:', wbs);
+                        return;
+                    }
 
-                    console.log('Processing WBS:', wbs.Nome);
+                    console.log('Processing WBS:', wbs.nome);
 
                     const row = document.createElement('tr');
                     const wbsNameCell = document.createElement('td');
-                    wbsNameCell.textContent = wbs.Nome;
+                    wbsNameCell.textContent = wbs.nome;
                     row.appendChild(wbsNameCell);
 
                     for (let day = startDay; day <= endDay; day++) {
@@ -110,14 +101,24 @@
                         }
                         const dateString = date.toISOString().split('T')[0];
 
-                        const registro = registroHorasList.find(r => new Date(r.Dia).toISOString().split('T')[0] === dateString && r.WBS_Codigo === wbs.Codigo);
-                        const horas = registro ? registro.Horas : '';
+                        const registro = registroHorasList.find(r => {
+                            const registroDate = parseDate(r.dia);
+
+                            console.log('Comparing dates:', registroDate, dateString, r.wbS_Codigo, wbs.codigo, r.id);
+                            return registroDate && registroDate.toISOString().split('T')[0] === dateString && r.wbS_Codigo === wbs.codigo;
+                        });
+                        const registroId = registro ? registro.id : '';
+                        console.log(registroId);
+                        const horas = registro ? registro.horas : '';
+                        console.log('Horas:', horas);
 
                         cell.innerHTML = `
                                     <div>Dia ${day}</div>
-                                    <div class="d-flex">
-                                        <input type="number" value="${horas}" disabled class="hours-input" data-dia="${dateString}" data-wbs="${wbs.Codigo}" />
-                                        <button type="button" class="btn btn-primary btn-edit" data-dia="${dateString}" data-wbs="${wbs.Codigo}" data-horas="${horas}" data-toggle="modal" data-target="#editModal">Editar</button>
+                                    <div class="d-flex div_horas_edit">
+                                        <input type="number" value="${horas}" disabled class="input_horas" data-dia="${dateString}" data-wbs="${wbs.codigo}" />
+                                        <a href="/Calendar/UpdateRegistroHoras/${registroId}?email=${email}" class="botao_editar_horas">
+                                            <img src="/assets/icon_edit.svg" class="img_edit_horas">
+                                        </a>
                                     </div>`;
                         row.appendChild(cell);
                     }
@@ -146,18 +147,6 @@
             });
 
             renderCalendar();
-
-            $('#editModal').on('show.bs.modal', function (event) {
-                const button = $(event.relatedTarget);
-                const dia = button.data('dia');
-                const wbs = button.data('wbs');
-                const horas = button.data('horas');
-
-                const modal = $(this);
-                modal.find('#editDia').val(dia);
-                modal.find('#editWbs').val(wbs);
-                modal.find('#editHoras').val(horas);
-            });
         });
     </script>
 }

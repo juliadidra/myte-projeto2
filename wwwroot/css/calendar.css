@@ -105,4 +105,18 @@
 .day .weekend {
     border: 2px solid #ffff;
 }
+.div_horas_edit{
+    display: flex;
+    gap: 0.2em;
+}
 
+.input_horas {
+    text-align: center;
+    width: fit-content;
+    background: #F7F2F9;
+    border: none;
+}
+
+.img_edit_horas{
+    width:1em;
+}
