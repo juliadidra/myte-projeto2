@@ -39,32 +39,33 @@ namespace myte.Controllers
 
 
 
-        public async Task<IActionResult> Create()
+        [HttpGet]
+        public async Task<IActionResult> Create(string email)
         {
+            ViewBag.Email = email;
             ViewBag.WbsList = await _wbsService.GetAllWbsAsync();
             return View();
         }
 
         [HttpPost]
-        
         public async Task<IActionResult> Create(RegistroHoras registroHoras)
         {
             if (ModelState.IsValid)
             {
                 try
                 {
-                    
                     await _registroHorasService.AddRegistroHorasAsync(registroHoras);
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Index), new { email = registroHoras.Funcionario_Email });
                 }
-                catch (Exception e)
+                catch (HttpRequestException e)
                 {
-                    // Log the error message
                     Console.WriteLine($"Request error: {e.Message}");
                     ModelState.AddModelError(string.Empty, "Erro ao enviar os dados para a API.");
                 }
             }
+
             ViewBag.WbsList = await _wbsService.GetAllWbsAsync();
+            ViewBag.Email = registroHoras.Funcionario_Email;
             return View(registroHoras);
         }
 
